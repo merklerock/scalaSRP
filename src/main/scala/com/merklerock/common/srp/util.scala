@@ -1,6 +1,7 @@
-package com.bitourea.srp.common
+package com.merklerock.common.srp
 
 import java.security._
+import org.mindrot.jbcrypt.BCrypt
 
 /**
  * The SRP 6a version as defined at http://srp.stanford.edu/.
@@ -44,17 +45,21 @@ object Util {
   /**
    * @param data The byte array that needs to be Hashed.
    * @param salt The byte array that is used as a salt for the hash. Default: Empty array
-   * @param algorithm The algorithm to be used for Hashing- SHA-1, SHA-256, SHA-512. Default: SHA-512
-   * @param iteration The number of iteration to use for Hashing. Default: 3
+   * @param algorithm The algorithm to be used for Hashing- SHA-1, SHA-256, SHA-512, Bcrypt. Default: Bcrypt.
+   * @param iteration The number of iteration to use for Hashing. Default: 3 
    * @return hash The byte array that is hashed using algorithm, iteration, data and salt  
    */
-  def H(data: Array[Byte], salt: Array[Byte] = Array(), algorithm: String = "SHA-512", iteration: Int = 3): Array[Byte] = {
-    val temp: Array[Byte] = data ++ salt
-    val digest = MessageDigest.getInstance(algorithm);
-    var input: Array[Byte] = digest.digest(temp);
-    Range(1, iteration).foreach(n => {
-      input = digest.digest(input)
-    })
+  def H(data: Array[Byte], salt: Array[Byte] = Array(), algorithm: String = "Bcrypt", iteration: Int = 3): Array[Byte] = {
+    if (algorithm == "Bcrypt") {
+      var input: Array[Byte] = BCrypt.hashpw(password, salt).toByteArray
+    } else { 
+      val temp: Array[Byte] = data ++ salt
+      val digest = MessageDigest.getInstance(algorithm);
+      var input: Array[Byte] = digest.digest(temp);
+      Range(1, iteration).foreach(n => {
+        input = digest.digest(input)
+      })
+    }
     if(input(0) < 0) input = Array(0.toByte) ++ input
     input
   }
@@ -91,10 +96,9 @@ trait SRPParameter {
   // g ^ x (mod N)
   def gPowXModN(x: Array[Byte]) = g modPow (BigInt(x), N)
 
-  //Generates 32 random byte array
-  def gen32RandomBytes = {
-    val bytes: Array[Byte] = new Array(32)
-    sr.nextBytes(bytes)
+  //Generates random Bcrypt salt byte array
+  def genBcryptRandomBytes = {
+    val bytes: Array[Byte] = Bcrypt.gensalt(14,sr).toByteArray
     bytes(0) = 0 //Always a positive random number
     bytes
   }
@@ -115,7 +119,7 @@ trait ClientSRPParameter extends SRPParameter {
     Sclient.toByteArray
   }
   
-  def a = gen32RandomBytes
+  def a = genBcryptRandomBytes
 
   def x(s:Array[Byte], password:Array[Byte]) = H(s, password)
       
@@ -135,7 +139,7 @@ trait ServerSRPParameter extends SRPParameter {
    * @return Tuple2 _1: salt, _2: x
    */
   def x(password: String) = {
-    val bytes: Array[Byte] = gen32RandomBytes
+    val bytes: Array[Byte] = genBcryptRandomBytes
     (bytes, H(bytes, password.getBytes()))
   }
 
@@ -143,7 +147,7 @@ trait ServerSRPParameter extends SRPParameter {
   //v = g^x (mod N)                  (computes password verifier)  
   def v(x: Array[Byte]) = gPowXModN(x).toByteArray
 
-  def b = gen32RandomBytes
+  def b = genBcryptRandomBytes
 
   //B = kv + g^b (mod N)
   def B(vVal: Array[Byte], bVal: Array[Byte]) = 
@@ -175,15 +179,14 @@ trait SRPServer extends ServerSRPParameter{
   import Util._
   
   /**
-   * Saves the calculated user credentials- userName, s, v
+   * Return the calculated user credentials- userName, s, v
    *  @param username user name
    *  @param password The passwrod to be used to save user credentials 
    *  @return Tuple3[Array[Byte],Array[Byte],Array[Byte]] s,x and v
    */
-  def saveUserCredentials(userName:String, password:String) = {
+  def getUserCredentials(userName:String, password:String) = {
 	  val (sVal,xVal) =  x(password)
 	  val vVal = v(xVal)
-	  save(userName, sVal, vVal)
 	  (sVal, xVal, vVal)
   }
   
@@ -217,11 +220,6 @@ trait SRPServer extends ServerSRPParameter{
       Some((sessionId.toHexString, H(sessionId).toHexString, s.toHexString, BVal.toHexString))
     }    
   }
-  
-  /**
-   * Saves the user credentials provided
-   */
-  def save(userName:String, s:Array[Byte], v:Array[Byte]):Unit
   
   /**
    * Finder method to get the s and v for the given user with userName

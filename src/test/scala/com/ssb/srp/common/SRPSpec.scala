@@ -4,11 +4,11 @@ import org.scalatest.FunSpec
 import org.scalatest.BeforeAndAfter
 import org.scalatest.matchers.ShouldMatchers
 
-import com.bitourea.srp.common.ClientSRPParameter;
-import com.bitourea.srp.common.SRPParameter;
-import com.bitourea.srp.common.ServerSRPParameter;
-import com.bitourea.srp.common.Util._
-import com.bitourea.srp.common._
+import com.merklerock.common.srp.ClientSRPParameter;
+import com.merklerock.common.srp.SRPParameter;
+import com.merklerock.common.srp.ServerSRPParameter;
+import com.merklerock.common.srp.Util._
+import com.merklerock.common.srp._
 	  
 class SRPSpec extends FunSpec with ShouldMatchers with BeforeAndAfter{
   object srp extends SRPParameter

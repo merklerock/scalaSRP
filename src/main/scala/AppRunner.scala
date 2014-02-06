@@ -5,8 +5,8 @@ import java.security.SecureRandom
  */
 object AppRunner {
 	def main(args:Array[String]){
-	  import com.bitourea.srp.common.Util._
-	  import com.bitourea.srp.common._
+	  import com.merklerock.common.srp.Util._
+	  import com.merklerock.common.srp._
 	  
 	  object srp extends SRPParameter
 	  object srpserver extends ServerSRPParameter
